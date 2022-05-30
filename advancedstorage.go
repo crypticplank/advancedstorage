@@ -7,19 +7,23 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/gob"
+	"encoding/hex"
 	"errors"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 )
 
 type Storage struct {
 	Filename string
+	Verbose  bool
 	Reader   io.Reader
 }
 
 type Options struct {
 	Filename string
+	Verbose  bool
 }
 
 type Header struct {
@@ -44,6 +48,10 @@ func (s *Storage) WriteToFile(b []byte) error {
 		return err
 	}
 
+	if s.Verbose {
+		log.Printf("Key: 0x%s", hex.EncodeToString(key))
+	}
+
 	header := Header{
 		EncryptionKey: key,
 		DataSize:      len(b),
@@ -55,17 +63,21 @@ func (s *Storage) WriteToFile(b []byte) error {
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
 
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
 
 	nonce := make([]byte, aesGCM.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		panic(err.Error())
+		return err
+	}
+
+	if s.Verbose {
+		log.Printf("Nonce: 0x%s", hex.EncodeToString(nonce))
 	}
 
 	b = aesGCM.Seal(nonce, nonce, b, nil)
@@ -103,6 +115,10 @@ func (s *Storage) ReadFromFile() ([]byte, error) {
 	data = data[gobSize:]
 
 	block, err := aes.NewCipher(header.EncryptionKey)
+	if s.Verbose {
+		log.Printf("Key: 0x%s", hex.EncodeToString(header.EncryptionKey))
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +129,9 @@ func (s *Storage) ReadFromFile() ([]byte, error) {
 
 	nonceSize := aesGCM.NonceSize()
 	nonce, cipher := data[:nonceSize], data[nonceSize:]
+	if s.Verbose {
+		log.Printf("Nonce: 0x%s", hex.EncodeToString(nonce))
+	}
 
 	data, _ = aesGCM.Open(nil, nonce, cipher, nil)
 
@@ -125,5 +144,6 @@ func New(options *Options) (*Storage, error) {
 	}
 	return &Storage{
 		Filename: options.Filename,
+		Verbose:  options.Verbose,
 	}, nil
 }
