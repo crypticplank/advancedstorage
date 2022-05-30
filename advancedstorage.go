@@ -88,6 +88,8 @@ func (s *Storage) WriteToFile(b []byte) error {
 
 	data := append(HeaderSize, append(buf.Bytes(), b...)...)
 
+	s.Reader = bytes.NewReader(data)
+
 	_, err = file.Write(data)
 	if err != nil {
 		return err
@@ -134,6 +136,8 @@ func (s *Storage) ReadFromFile() ([]byte, error) {
 	}
 
 	data, _ = aesGCM.Open(nil, nonce, cipher, nil)
+
+	s.Reader = bytes.NewReader(data)
 
 	return data, nil
 }

@@ -3,6 +3,9 @@ package advancedstorage
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/hex"
+	"fmt"
+	"io"
 	"log"
 	"testing"
 )
@@ -19,6 +22,8 @@ func TestStorage_WriteToFile(t *testing.T) {
 	encoder := gob.NewEncoder(&buffer)
 	encoder.Encode(TestStruct{TestText: "testing", TestNumber: 420, TestData: []byte{0x41, 0x41}})
 	s.WriteToFile(buffer.Bytes())
+	data, _ := io.ReadAll(s.Reader)
+	fmt.Println(hex.Dump(data))
 }
 
 func TestStorage_ReadFromFile(t *testing.T) {
